@@ -3,12 +3,35 @@ import itertools
 
 def center(X, mean=None):
     
+    """
+    Function to center the data using empirical mean to have each variable with zero mean.
+    
+    Attributes:
+        * X: data to center
+        * mean: if the true mean is known, can be used (default=None)
+    
+    Returns: 
+        * Centered data
+    """
+    
     if mean is None:
         return X - X.mean(axis=1, keepdims=True)
     else:
         return X - mean
     
 def time_lagged_autocov(X, lags):
+    
+    """
+    Computes the auto-covariance tensor, containing all lagged-autocovariance with lag from 0 (covariance) to lags
+    
+    Attributes:
+        * X: time series data (dimension: variables x time)
+        * lags: number of lags to consider
+        
+    Returns:
+        * Autocovariance tensor
+        
+    """
     
     lags = lags + 1
     n, l = X.shape
@@ -20,12 +43,25 @@ def time_lagged_autocov(X, lags):
     for k in range(lags):
         Xk = center(X[:, k:k+L])
         R[k] = (1.0/L)*(X0.dot(Xk.T))
-        
         R[k] = 0.5*(R[k] + R[k].T)
     
     return R
 
 def whitening(X, C=None):
+    
+    """
+    Function that withens the data.
+    
+    Attributes:
+        * X: time series data
+        * C: number of dimensions kept in the SVD
+        
+    Returns:
+        * Whitened data
+        * Singular vectors
+        * singular values
+    
+    """
     
     if C is None:
         C = X.shape[0]
@@ -42,6 +78,18 @@ def off_frobenius(M):
     return (np.linalg.norm(np.tril(M, k=-1), ord='fro')**2 + np.linalg.norm(np.triu(M, k=1), ord='fro')**2)
 
 def rotation(M):
+    
+    """
+    This function infers Jacobi rotations matrix R used in the joint diagonalization of a set of matrices
+    
+    Attributes:
+        * M: matrix to be rotated
+        
+    Returns:
+        * Rotation matrix
+    
+    
+    """
     
     h = np.array([M[:, 0, 0] - M[:, 1, 1], 
                   M[:, 1, 0] + M[:, 0, 1], 
@@ -60,6 +108,21 @@ def rotation(M):
     return R
 
 def joint_diagonalization(C, V=None, eps=1e-3, max_iter=1000, verbose=-1):
+    
+    """
+    Joint diagonalization of a set of matrices C
+    
+    Attributes:
+        * C: 
+        * V: (default=None)
+        * eps: tolerance for stopping criteria (default=1e-3)
+        * max_iter: maximum number of iterations taken for the solvers to converge (default=1000)
+    
+    Returns:
+        * V:
+        * C:
+        
+    """
     
     d = C.shape[1]
     list_pairs = list(itertools.combinations(range(d), 2))
@@ -94,13 +157,28 @@ def joint_diagonalization(C, V=None, eps=1e-3, max_iter=1000, verbose=-1):
         
     return V, C
 
-def ICA(X, lag=1, eps=1e-3, max_iter=1000):
+def ICA(X, lags=1, eps=1e-3, max_iter=1000):
+    
+    """
+    Linear ICA for time series data using joint diagonalization of the lagged-autocovariance matrices
+    
+    Attributes:
+        * X: time series data (dimension: variables x time)
+        * lags: number of lags to consider (default=1)
+        * eps: tolerance for stopping criteria (default=1e-3)
+        * max_iter: maximum number of iterations taken for the solvers to converge (default=1000)
+    
+    Returns:
+        * Estimated sources
+        * Unmixing matrix
+    
+    """
     
     X_white, U, d = whitening(X)
-    C = time_lagged_autocov(X_white, lag)
+    C = time_lagged_autocov(X_white, lags)
     C = C + 1J*np.zeros_like(C)
     V, C = joint_diagonalization(C, eps=eps, max_iter=max_iter)
     W = (V.T).dot((U / d).T)
     S = np.real(W.dot(X))
     
-    return S
+    return S, W
