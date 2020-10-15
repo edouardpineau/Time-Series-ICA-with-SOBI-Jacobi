@@ -80,7 +80,9 @@ def off_frobenius(M):
 def rotation(M):
     
     """
-    This function infers Jacobi rotations matrix R used in the joint diagonalization of a set of matrices
+    This function infers Jacobi rotation matrix R used in the joint diagonalization of a set of matrices
+    
+    See: https://en.wikipedia.org/wiki/Jacobi_rotation
     
     Attributes:
         * M: matrix to be rotated
