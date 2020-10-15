@@ -115,14 +115,14 @@ def joint_diagonalization(C, V=None, eps=1e-3, max_iter=1000, verbose=-1):
     Joint diagonalization of a set of matrices C
     
     Attributes:
-        * C: 
-        * V: (default=None)
+        * C: set of symmetric matrices
+        * V:  a priori eigan-vectors of the matrices C (default=None)
         * eps: tolerance for stopping criteria (default=1e-3)
         * max_iter: maximum number of iterations taken for the solvers to converge (default=1000)
     
     Returns:
-        * V:
-        * C:
+        * V: a posteriori eigen-vectors of the matrices C
+        * C: diagonalized matrices
         
     """
     
