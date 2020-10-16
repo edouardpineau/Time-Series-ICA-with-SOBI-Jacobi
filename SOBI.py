@@ -47,14 +47,13 @@ def time_lagged_autocov(X, lags):
     
     return R
 
-def whitening(X, C=None):
+def whitening(X):
     
     """
     Function that withens the data.
     
     Attributes:
         * X: time series data
-        * C: number of dimensions kept in the SVD
         
     Returns:
         * Whitened data
@@ -63,13 +62,10 @@ def whitening(X, C=None):
     
     """
     
-    if C is None:
-        C = X.shape[0]
-        
     X = center(X)
     U, d, _ = np.linalg.svd(X, full_matrices=False)
-    U_d = (U / d).T[:C]
-    X_whiten = np.dot(U_d, X) * np.sqrt(X.shape[1]) # np.dot(E, np.dot(D_inv, np.dot(E.T, X)))
+    U_d = (U / d).T
+    X_whiten = np.dot(U_d, X) * np.sqrt(X.shape[1])
     
     return X_whiten, U, d
     
