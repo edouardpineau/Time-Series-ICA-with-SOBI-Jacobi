@@ -1,6 +1,9 @@
 import numpy as np
 import itertools
 
+from sklearn.utils.validation import check_is_fitted
+from sklearn.base import TransformerMixin, BaseEstimator
+
 def center(X, mean=None):
     
     """
@@ -71,6 +74,18 @@ def whitening(X):
     
 def off_frobenius(M):
     
+    """
+    Computes the square Frobenius norm of the matrix M-diag(M)
+    
+    Attributes:
+        * M: square matrix
+        
+    Returns:
+        * Off-diagonal Frobenius norm
+    
+    
+    """
+    
     return (np.linalg.norm(np.tril(M, k=-1), ord='fro')**2 + np.linalg.norm(np.triu(M, k=1), ord='fro')**2)
 
 def rotation(M):
@@ -92,7 +107,6 @@ def rotation(M):
     h = np.array([M[:, 0, 0] - M[:, 1, 1], 
                   M[:, 1, 0] + M[:, 0, 1], 
                   1j*(M[:, 1, 0] - M[:, 0, 1])]).T
-    # G = np.stack([np.expand_dims(h_, axis=1).dot(np.expand_dims(h_, axis=0)) for h_ in h]).sum(0)
     G = np.real(h.T.dot(h))
     [eigvals,v] = np.linalg.eigh(G)
     [x, y, z] = np.sign(v[0, -1])*v[:,-1]
@@ -155,28 +169,72 @@ def joint_diagonalization(C, V=None, eps=1e-3, max_iter=1000, verbose=-1):
         
     return V, C
 
-def ICA(X, lags=1, eps=1e-3, max_iter=1000):
+
+class SOBI(TransformerMixin, BaseEstimator):
     
     """
+    
     Linear ICA for time series data using joint diagonalization of the lagged-autocovariance matrices
     
-    Attributes:
-        * X: time series data (dimension: variables x time)
-        * lags: number of lags to consider (default=1)
-        * eps: tolerance for stopping criteria (default=1e-3)
-        * max_iter: maximum number of iterations taken for the solvers to converge (default=1000)
-    
-    Returns:
-        * Estimated sources
-        * Unmixing matrix
-    
     """
     
-    X_white, U, d = whitening(X)
-    C = time_lagged_autocov(X_white, lags)
-    C = C + 1J*np.zeros_like(C)
-    V, C = joint_diagonalization(C, eps=eps, max_iter=max_iter)
-    W = (V.T).dot((U / d).T)
-    S = np.real(W.dot(X))
+    def __init__(self, lags=1, eps=1e-3, max_iter=1000):
+        
+        self.lags = lags
+        self.eps = eps
+        self.max_iter = max_iter
+        self.is_fitted_ = False
     
-    return S, W
+    def fit(self, X):
+        
+        """
+        
+        Attributes:
+            * X: time series data (dimension: time x variables)
+            * lags: number of lags to consider (default=1)
+            * eps: tolerance for stopping criteria (default=1e-3)
+            * max_iter: maximum number of iterations taken for the solvers to converge (default=1000)
+
+        """
+
+        X_white, U, d = whitening(X.T)
+        C = time_lagged_autocov(X_white, self.lags)
+        C = C + 1J*np.zeros_like(C)
+        V, C = joint_diagonalization(C, eps=self.eps, max_iter=self.max_iter)
+        self.W = (V.T).dot((U / d).T)
+        
+        self.is_fitted_ = True
+
+    def transform(self, X):
+        
+        """
+        
+        Attributes:
+            * X: time series data (dimension: time x variables)
+
+        Returns:
+            * Estimated sources
+
+        """
+        
+        check_is_fitted(self, 'is_fitted_')
+        return np.real(X.dot(self.W.T))
+    
+    def fit_transform(self, X):
+        
+        """
+        
+        Attributes:
+            * X: time series data (dimension: time x variables)
+            * lags: number of lags to consider (default=1)
+            * eps: tolerance for stopping criteria (default=1e-3)
+            * max_iter: maximum number of iterations taken for the solvers to converge (default=1000)
+
+        Returns:
+            * Estimated sources
+
+        """
+        
+        self.fit(X)
+        return self.transform(X)
+    
